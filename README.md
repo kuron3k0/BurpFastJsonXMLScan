@@ -17,8 +17,8 @@ BurpFastJsonXMLScan 一个希望能节省一些渗透时间好进行划水的扫
 - [x] 命令回显
 - [x] 远程命令执行
 - [x] xxe探测
-- [] xstream探测
-- [] xmldecoder探测
+- [ ] xstream探测
+- [ ] xmldecoder探测
 
 新增了对[BugScanTeam的DNSLog](https://github.com/BugScanTeam/DNSLog)的支持
 
