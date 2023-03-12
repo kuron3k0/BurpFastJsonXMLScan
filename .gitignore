@@ -5,4 +5,5 @@
 .project
 out
 target
-BurpFastJsonScan.iml
+BurpFastJsonXMLScan.iml
+**/config.yml

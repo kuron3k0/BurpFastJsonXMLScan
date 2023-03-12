@@ -139,6 +139,26 @@ public class BurpAnalyzedRequest {
     }
 
     /**
+     * 判断body是否有xml参数
+     *
+     * @return
+     */
+    public Boolean hasXMLParameters() {
+        try{
+            String body = new String(requestResponse().getRequest(), "UTF-8");
+            if(CustomHelpers.isXml(body)){
+                return true;
+            }
+        }catch (Exception e){
+            return false;
+        }
+
+
+        return false;
+    }
+
+
+    /**
      * 会根据程序类型自动组装请求的 请求发送接口
      */
     public IHttpRequestResponse makeHttpRequest(String payload, List<String> newHeaders) {
@@ -155,6 +175,41 @@ public class BurpAnalyzedRequest {
         } else {
             // 普通数据格式的处理
             newRequest = this.buildParameter(payload, null, headers);
+        }
+
+        IHttpRequestResponse newHttpRequestResponse = this.callbacks.makeHttpRequest(this.requestResponse().getHttpService(), newRequest);
+        return newHttpRequestResponse;
+    }
+
+    /**
+     * 组装xml请求
+     */
+    public IHttpRequestResponse makeXMLHttpRequest(String payload) {
+        byte[] newRequest;
+
+        List<String> headers = this.analyzeRequest().getHeaders();
+
+        if (this.analyzeRequest().getContentType() == IRequestInfo.CONTENT_TYPE_XML) {
+            // POST请求包提交的数据为xml时的处理
+            newRequest = this.helpers.buildHttpMessage(this.analyzeRequest().getHeaders(),
+                    this.helpers.stringToBytes(payload));
+        } else {
+            // xml参数处理
+            newRequest = this.requestResponse().getRequest();
+            List<IParameter> params = this.analyzeRequest().getParameters();
+            for (IParameter p: params) {
+                if(CustomHelpers.isXml(p.getValue())){
+                    IParameter newParameter = this.helpers.buildParameter(
+                            p.getName(),
+                            this.helpers.urlEncode(payload),
+                            p.getType()
+                    );
+
+                    newRequest = this.helpers.updateParameter(
+                            newRequest,
+                            newParameter);
+                }
+            }
         }
 
         IHttpRequestResponse newHttpRequestResponse = this.callbacks.makeHttpRequest(this.requestResponse().getHttpService(), newRequest);

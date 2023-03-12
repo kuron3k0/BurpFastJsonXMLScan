@@ -7,6 +7,8 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 
 import burp.Application.CmdEchoExtension.CmdEcho;
+import burp.Application.XMLExtension.ExtensionMethod.XMLScan;
+import burp.Application.XMLExtension.XMLExploit;
 import burp.Ui.Tags;
 import burp.DnsLogModule.DnsLog;
 import burp.Bootstrap.YamlReader;
@@ -17,8 +19,8 @@ import burp.CustomErrorException.TaskTimeoutException;
 import burp.Application.RemoteCmdExtension.RemoteCmd;
 
 public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionStateListener {
-    public static String NAME = "FastJsonScan";
-    public static String VERSION = "2.2.2";
+    public static String NAME = "FastJsonXMLScan";
+    public static String VERSION = "3.1.0";
 
     private GlobalVariableReader globalVariableReader;
 
@@ -127,8 +129,83 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
             return null;
         }
 
+        // 判断当前请求是否有xml，并进行扫描
+        if(baseAnalyzedRequest.hasXMLParameters()){
+            stdout.println("found xml parameter");
+            // 添加任务到面板中等待检测
+            int tagId = this.tags.getScanQueueTagClass().add(
+                    "",
+                    this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                    baseBurpUrl.getHttpRequestUrl().toString(),
+                    this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                    "waiting for xml scan results",
+                    baseRequestResponse
+            );
+            try {
+                // xml扩展
+                IScanIssue xmlIssuesDetail = this.xmlExtension(tagId, baseAnalyzedRequest);
+                if (xmlIssuesDetail != null) {
+                    issues.add(xmlIssuesDetail);
+                    return issues;
+                }
+
+
+                // 未检测出来问题, 更新任务状态至任务栏面板
+                this.tags.getScanQueueTagClass().save(
+                        tagId,
+                        "ALL",
+                        this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                        baseBurpUrl.getHttpRequestUrl().toString(),
+                        this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                        "[-] not found xml vuln",
+                        baseRequestResponse
+                );
+            } catch (TaskTimeoutException e) {
+                this.stdout.println("========插件错误-超时错误============");
+                this.stdout.println(String.format("url: %s", baseBurpUrl.getHttpRequestUrl().toString()));
+                this.stdout.println("请使用该url重新访问,若是还多次出现此错误,则很有可能waf拦截");
+                this.stdout.println("错误详情请查看Extender里面对应插件的Errors标签页");
+                this.stdout.println("========================================");
+                this.stdout.println(" ");
+
+                this.tags.getScanQueueTagClass().save(
+                        tagId,
+                        "",
+                        this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                        baseBurpUrl.getHttpRequestUrl().toString(),
+                        this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                        "[x] scan task timed out",
+                        baseRequestResponse
+                );
+
+                e.printStackTrace(this.stderr);
+            } catch (Exception e) {
+                this.stdout.println("========插件错误-未知错误============");
+                this.stdout.println(String.format("url: %s", baseBurpUrl.getHttpRequestUrl().toString()));
+                this.stdout.println("请使用该url重新访问,若是还多次出现此错误,则很有可能waf拦截");
+                this.stdout.println("错误详情请查看Extender里面对应插件的Errors标签页");
+                this.stdout.println("========================================");
+                this.stdout.println(" ");
+
+                this.tags.getScanQueueTagClass().save(
+                        tagId,
+                        "",
+                        this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                        baseBurpUrl.getHttpRequestUrl().toString(),
+                        this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                        "[x] unknown error",
+                        baseRequestResponse
+                );
+
+                e.printStackTrace(this.stderr);
+            }
+
+        }
+
         // 判断当前请求是否有json
         if (!baseAnalyzedRequest.isRequestParameterContentJson()) {
+            this.stdout.println(baseBurpUrl.getHttpRequestUrl().toString());
+            /*
             if (messageLevel.equals("ALL")) {
                 this.tags.getScanQueueTagClass().add(
                         "",
@@ -139,6 +216,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
                         baseRequestResponse
                 );
             }
+            */
             return null;
         }
 
@@ -201,7 +279,7 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
                 this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
                 baseBurpUrl.getHttpRequestUrl().toString(),
                 this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
-                "waiting for test results",
+                "waiting for fastjson results",
                 baseRequestResponse
         );
 
@@ -286,6 +364,45 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
     @Override
     public int consolidateDuplicateIssues(IScanIssue existingIssue, IScanIssue newIssue) {
         return 0;
+    }
+
+
+    /**
+     * xml扩展
+     *
+     * @param tagId
+     * @param analyzedRequest
+     * @return IScanIssue issues
+     * @throws ClassNotFoundException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    private IScanIssue xmlExtension(int tagId, BurpAnalyzedRequest analyzedRequest) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        String provider = this.yamlReader.getString("application.XMLExtension.config.provider");
+
+
+        DnsLog dnsLog = new DnsLog(this.callbacks, this.yamlReader.getString("dnsLogModule.provider"));
+        XMLExploit xmlexploit = new XMLExploit(this.globalVariableReader, this.callbacks, analyzedRequest, dnsLog, this.yamlReader, provider);
+        if (!xmlexploit.run().isIssue()) {
+            return null;
+        }
+
+        IHttpRequestResponse httpRequestResponse = xmlexploit.run().getHttpRequestResponse();
+
+        this.tags.getScanQueueTagClass().save(
+                tagId,
+                xmlexploit.run().getExtensionName(),
+                this.helpers.analyzeRequest(httpRequestResponse).getMethod(),
+                new CustomBurpUrl(this.callbacks, httpRequestResponse).getHttpRequestUrl().toString(),
+                this.helpers.analyzeResponse(httpRequestResponse.getResponse()).getStatusCode() + "",
+                "[+] found xml vuln",
+                xmlexploit.run().getHttpRequestResponse()
+        );
+
+        xmlexploit.run().consoleExport();
+        return xmlexploit.run().export();
     }
 
     /**

@@ -1,23 +1,21 @@
-package burp.Application.RemoteCmdExtension.ExtensionMethod;
+package burp.Application.XMLExtension.ExtensionMethod;
 
+import burp.Application.ExtensionInterface.AAppExtension;
+import burp.Bootstrap.BurpAnalyzedRequest;
+import burp.Bootstrap.CustomHelpers;
+import burp.Bootstrap.GlobalVariableReader;
+import burp.Bootstrap.YamlReader;
+import burp.CustomErrorException.TaskTimeoutException;
+import burp.*;
+import burp.DnsLogModule.DnsLog;
+
+import java.io.PrintWriter;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.ArrayList;
-import java.io.PrintWriter;
 
-import burp.*;
-
-import burp.Bootstrap.GlobalVariableReader;
-import burp.CustomScanIssue;
-import burp.DnsLogModule.DnsLog;
-import burp.Bootstrap.YamlReader;
-import burp.Bootstrap.CustomHelpers;
-import burp.Bootstrap.BurpAnalyzedRequest;
-import burp.Application.ExtensionInterface.AAppExtension;
-import burp.CustomErrorException.TaskTimeoutException;
-
-public class RemoteCmdScan extends AAppExtension {
+public class XMLScan extends AAppExtension {
     private GlobalVariableReader globalVariableReader;
 
     private IBurpExtenderCallbacks callbacks;
@@ -40,7 +38,7 @@ public class RemoteCmdScan extends AAppExtension {
     private ArrayList<String> dnsLogUrlArrayList = new ArrayList<>();
     private ArrayList<IHttpRequestResponse> httpRequestResponseArrayList = new ArrayList<>();
 
-    public RemoteCmdScan(GlobalVariableReader globalVariableReader,
+    public XMLScan(GlobalVariableReader globalVariableReader,
                          IBurpExtenderCallbacks callbacks, BurpAnalyzedRequest analyzedRequest,
                          DnsLog dnsLog, YamlReader yamlReader, List<String> payloads,
                          Date startDate, Integer maxExecutionTime) {
@@ -60,7 +58,7 @@ public class RemoteCmdScan extends AAppExtension {
         this.startDate = startDate;
         this.maxExecutionTime = maxExecutionTime;
 
-        this.setExtensionName("RemoteCmdScan");
+        this.setExtensionName("XMLScan");
         this.registerExtension();
 
         this.runExtension();
@@ -80,7 +78,7 @@ public class RemoteCmdScan extends AAppExtension {
             }
 
             // 实际业务处理
-            boolean flag = this.remoteCmdDetection(payload);
+            boolean flag = this.xmlExploitDetection(payload);
             if(flag)
                 break;
 
@@ -138,21 +136,21 @@ public class RemoteCmdScan extends AAppExtension {
         }
     }
 
-    private boolean remoteCmdDetection(String payload) {
+    private boolean xmlExploitDetection(String payload) {
         String key = CustomHelpers.randomStr(8);
         String host = this.analyzedRequest.requestResponse().getHttpService().getHost();
         int port = this.analyzedRequest.requestResponse().getHttpService().getPort();
 
-        String dnsLogUrl = key+ "."+host+"."+Integer.toString(port) +".fj." + this.dnsLog.run().getTemporaryDomainName();
+        String dnsLogUrl = key+ "."+host+"."+Integer.toString(port) +".xml." + this.dnsLog.run().getTemporaryDomainName();
+
 
         // 发送请求
-        IHttpRequestResponse newHttpRequestResponse = analyzedRequest.makeHttpRequest(payload.replace("dnslog-url", dnsLogUrl), null);
+        IHttpRequestResponse newHttpRequestResponse = analyzedRequest.makeXMLHttpRequest(payload.replace("dnslog-url", dnsLogUrl));
 
         // 相关变量设置
         this.keyArrayList.add(key);
         this.dnsLogUrlArrayList.add(dnsLogUrl);
         this.httpRequestResponseArrayList.add(newHttpRequestResponse);
-
 
         // dnslog 返回的内容判断
         String dnsLogBodyContent = this.dnsLog.run().getBodyContent();

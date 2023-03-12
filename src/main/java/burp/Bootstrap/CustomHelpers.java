@@ -1,8 +1,12 @@
 package burp.Bootstrap;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CustomHelpers {
+
+    public static Pattern xmlpattern = Pattern.compile("(\\<|%3(c|C))[a-zA-Z0-9_:!\\?\\[]+.*?[a-zA-Z0-9:_/\\?\\]]+(\\>|%3(e|E))");
     /**
      * 随机取若干个字符
      *
@@ -46,6 +50,16 @@ public class CustomHelpers {
             } else if (str.startsWith("[") && str.endsWith("]")) {
                 result = true;
             }
+        }
+        return result;
+    }
+
+    public static boolean isXml(String str){
+        boolean result = false;
+        Matcher m = xmlpattern.matcher(str);
+        if(m.find()){
+            result = true;
+            return result;
         }
         return result;
     }
