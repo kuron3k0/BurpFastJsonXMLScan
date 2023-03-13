@@ -1,4 +1,4 @@
-# BurpFastJsonXMLScan
+# ExploitScan
 一款基于BurpSuite的被动式FastJson和XML相关漏洞的检测插件，在pmiaowu师傅的插件基础上根据自己使用习惯的二次开发
 
 # 免责声明
@@ -9,7 +9,7 @@
 本人拥有对此工具的修改和解释权。未经网络安全部门及相关部门允许，不得善自使用本工具进行任何攻击活动，不得以任何方式将其用于商业目的。
 
 # 简介
-BurpFastJsonXMLScan 一个希望能节省一些渗透时间好进行划水的扫描插件
+ExploitScan 一个希望能节省一些渗透时间好进行划水的扫描插件
 
 该插件会对BurpSuite传进来的带有json数据和xml数据的请求包进行检测
 
@@ -19,6 +19,8 @@ BurpFastJsonXMLScan 一个希望能节省一些渗透时间好进行划水的扫
 - [x] xxe探测
 - [ ] xstream探测
 - [ ] xmldecoder探测
+- [ ] ssrf
+- [ ] 反射型XSS
 
 新增了对[BugScanTeam的DNSLog](https://github.com/BugScanTeam/DNSLog)的支持
 
