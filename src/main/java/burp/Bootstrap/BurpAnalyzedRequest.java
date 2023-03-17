@@ -158,6 +158,19 @@ public class BurpAnalyzedRequest {
     }
 
 
+    public boolean hasURLParameters(){
+        try{
+            String body = new String(requestResponse().getRequest(), "UTF-8");
+            if(CustomHelpers.hasURL(body)){
+                return true;
+            }
+        }catch (Exception e){
+            return false;
+        }
+        return false;
+    }
+
+
     /**
      * 会根据程序类型自动组装请求的 请求发送接口
      */
@@ -199,6 +212,41 @@ public class BurpAnalyzedRequest {
             List<IParameter> params = this.analyzeRequest().getParameters();
             for (IParameter p: params) {
                 if(CustomHelpers.isXml(p.getValue())){
+                    IParameter newParameter = this.helpers.buildParameter(
+                            p.getName(),
+                            this.helpers.urlEncode(payload),
+                            p.getType()
+                    );
+
+                    newRequest = this.helpers.updateParameter(
+                            newRequest,
+                            newParameter);
+                }
+            }
+        }
+
+        IHttpRequestResponse newHttpRequestResponse = this.callbacks.makeHttpRequest(this.requestResponse().getHttpService(), newRequest);
+        return newHttpRequestResponse;
+    }
+
+    /**
+     * 组装ssrf请求
+     */
+    public IHttpRequestResponse makeSSRFHttpRequest(String payload) {
+        byte[] newRequest;
+
+        List<String> headers = this.analyzeRequest().getHeaders();
+
+        if (this.analyzeRequest().getContentType() == IRequestInfo.CONTENT_TYPE_JSON) {
+            // POST请求包提交的数据为json时的处理
+            newRequest = this.helpers.buildHttpMessage(this.analyzeRequest().getHeaders(),
+                    this.helpers.stringToBytes(payload));
+        } else {
+            // url参数处理
+            newRequest = this.requestResponse().getRequest();
+            List<IParameter> params = this.analyzeRequest().getParameters();
+            for (IParameter p: params) {
+                if(p.getValue().startsWith("http://") || p.getValue().startsWith("https://")){
                     IParameter newParameter = this.helpers.buildParameter(
                             p.getName(),
                             this.helpers.urlEncode(payload),

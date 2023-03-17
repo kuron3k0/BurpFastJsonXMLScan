@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 
 import burp.Application.CmdEchoExtension.CmdEcho;
+import burp.Application.SSRFExtension.SSRFExploit;
 import burp.Application.XMLExtension.ExtensionMethod.XMLScan;
 import burp.Application.XMLExtension.XMLExploit;
 import burp.Ui.Tags;
@@ -129,6 +130,52 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
             return null;
         }
 
+        // 判断当前请求是否有url，并进行扫描
+        if(baseAnalyzedRequest.hasURLParameters()){
+            stdout.println("found url parameter");
+            int tagId = this.tags.getScanQueueTagClass().add(
+                    "",
+                    this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                    baseBurpUrl.getHttpRequestUrl().toString(),
+                    this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                    "waiting for ssrf scan results",
+                    baseRequestResponse
+            );
+            try {
+                // xml扩展
+                IScanIssue ssrfIssuesDetail = this.ssrfExtension(tagId, baseAnalyzedRequest);
+                if (ssrfIssuesDetail != null) {
+                    issues.add(ssrfIssuesDetail);
+                    return issues;
+                }
+
+
+                // 未检测出来问题, 更新任务状态至任务栏面板
+                this.tags.getScanQueueTagClass().save(
+                        tagId,
+                        "ALL",
+                        this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                        baseBurpUrl.getHttpRequestUrl().toString(),
+                        this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                        "[-] not found ssrf vuln",
+                        baseRequestResponse
+                );
+            }catch (Exception e){
+                this.tags.getScanQueueTagClass().save(
+                        tagId,
+                        "",
+                        this.helpers.analyzeRequest(baseRequestResponse).getMethod(),
+                        baseBurpUrl.getHttpRequestUrl().toString(),
+                        this.helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode() + "",
+                        "[x] unknown error",
+                        baseRequestResponse
+                );
+                stderr.println("[-] error in "+baseBurpUrl.getHttpRequestUrl().toString());
+                e.printStackTrace(this.stderr);
+            }
+
+        }
+
         // 判断当前请求是否有xml，并进行扫描
         if(baseAnalyzedRequest.hasXMLParameters()){
             stdout.println("found xml parameter");
@@ -180,12 +227,6 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
 
                 e.printStackTrace(this.stderr);
             } catch (Exception e) {
-                this.stdout.println("========插件错误-未知错误============");
-                this.stdout.println(String.format("url: %s", baseBurpUrl.getHttpRequestUrl().toString()));
-                this.stdout.println("请使用该url重新访问,若是还多次出现此错误,则很有可能waf拦截");
-                this.stdout.println("错误详情请查看Extender里面对应插件的Errors标签页");
-                this.stdout.println("========================================");
-                this.stdout.println(" ");
 
                 this.tags.getScanQueueTagClass().save(
                         tagId,
@@ -366,6 +407,43 @@ public class BurpExtender implements IBurpExtender, IScannerCheck, IExtensionSta
         return 0;
     }
 
+    /**
+     * xml扩展
+     *
+     * @param tagId
+     * @param analyzedRequest
+     * @return IScanIssue issues
+     * @throws ClassNotFoundException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    private IScanIssue ssrfExtension(int tagId, BurpAnalyzedRequest analyzedRequest) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        String provider = this.yamlReader.getString("application.ssrfExtension.config.provider");
+
+
+        DnsLog dnsLog = new DnsLog(this.callbacks, this.yamlReader.getString("dnsLogModule.provider"));
+        SSRFExploit ssrfexploit = new SSRFExploit(this.globalVariableReader, this.callbacks, analyzedRequest, dnsLog, this.yamlReader, provider);
+        if (!ssrfexploit.run().isIssue()) {
+            return null;
+        }
+
+        IHttpRequestResponse httpRequestResponse = ssrfexploit.run().getHttpRequestResponse();
+
+        this.tags.getScanQueueTagClass().save(
+                tagId,
+                ssrfexploit.run().getExtensionName(),
+                this.helpers.analyzeRequest(httpRequestResponse).getMethod(),
+                new CustomBurpUrl(this.callbacks, httpRequestResponse).getHttpRequestUrl().toString(),
+                this.helpers.analyzeResponse(httpRequestResponse.getResponse()).getStatusCode() + "",
+                "[+] found ssrf or redirect vuln",
+                ssrfexploit.run().getHttpRequestResponse()
+        );
+
+        ssrfexploit.run().consoleExport();
+        return ssrfexploit.run().export();
+    }
 
     /**
      * xml扩展

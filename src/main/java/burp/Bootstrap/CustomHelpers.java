@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 public class CustomHelpers {
 
     public static Pattern xmlpattern = Pattern.compile("(\\<|%3(c|C))[a-zA-Z0-9_:!\\?\\[]+.*?[a-zA-Z0-9:_/\\?\\]]+(\\>|%3(e|E))");
+    public static Pattern urlpattern = Pattern.compile("(\"|=)https?(:|%3(a|A))(/|%2(f|F)){2}");
+
     /**
      * 随机取若干个字符
      *
@@ -57,6 +59,16 @@ public class CustomHelpers {
     public static boolean isXml(String str){
         boolean result = false;
         Matcher m = xmlpattern.matcher(str);
+        if(m.find()){
+            result = true;
+            return result;
+        }
+        return result;
+    }
+
+    public static boolean hasURL(String str){
+        boolean result = false;
+        Matcher m = urlpattern.matcher(str);
         if(m.find()){
             result = true;
             return result;
